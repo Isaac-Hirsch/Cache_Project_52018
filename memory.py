@@ -95,7 +95,7 @@ class Cache:
         self.index_size = math.ceil(np.log2(self.num_sets))
         self.offset_size = math.ceil(np.log2(block_size))
         self.tag_size = memory.get_address_size - self.index_size - self.offset_size
-        assert self.tag_size > 0, "Tag size must be greater than 0"
+        assert self.tag_size >= 0, "Tag size must be greater than or equal to 0"
         #This does not include bits used for replacement policy
         self.cache_line_size = self.block_size + self.tag_size + 1 # Valid bit
         
@@ -144,22 +144,19 @@ class Cache:
                             and self.lru[index * self.associativity + j] < self.lru[index * self.associativity + i]:
                             self.lru[index * self.associativity + j] += 1
                         self.lru[index * self.associativity + i] = 0
-                elif self.replacement_policy == "FIFO":
-                    self.fifo[index] = (self.fifo[index] + 1) % self.associativity
                 return self.data[cache_line], offset
 
         # Cache miss
+        if self.replacement_policy == "LRU":
+            for i in range(self.associativity):
+                cache_line = index * self.associativity + i
+                if not self.valid_bits[cache_line] or self.lru[cache_line] == self.associativity - 1:
+                    self.valid_bits[cache_line] = True
+                    self.tags[cache_line] = tag
 
-        for i in range(self.associativity):
-            cache_line = index * self.associativity + i
-            if not self.valid_bits[cache_line] or self.lru[cache_line] == self.associativity - 1:
-                self.valid_bits[cache_line] = True
-                self.tags[cache_line] = tag
-
-                for j in range(self.block_size):
-                    self.data[cache_line][j] = self.memory.read(address + j)
-                
-                if self.replacement_policy == "LRU":
+                    for j in range(self.block_size):
+                        self.data[cache_line][j] = self.memory.read(address + j)
+                    
                     for j in range(self.associativity):
                         if j != i and self.valid_bits[index * self.associativity + j]:
                             if not (self.valid_bits[index * self.associativity + i] \
@@ -167,12 +164,26 @@ class Cache:
                                 self.lru[index * self.associativity + j] += 1
                         self.lru[index * self.associativity + i] = 0
                     
-                elif self.replacement_policy == "FIFO":
-                    self.fifo[index] = (self.fifo[index] + 1) % self.associativity
-                
-                return self.data[cache_line], offset
+                    return self.data[cache_line], offset
 
-        raise Exception("Something went wrong with cache read")
+            raise Exception("Something went wrong with cache read")
+
+        elif self.replacement_policy == "FIFO":
+            cache_line = index * self.associativity + self.fifo[index]
+            self.valid_bits[cache_line] = True
+            self.tags[cache_line] = tag
+            for j in range(self.block_size):
+                self.data[cache_line][j] = self.memory.read(address + j)
+            self.fifo[index] = (self.fifo[index] + 1) % self.associativity
+            return self.data[cache_line], offset
+        
+        elif self.replacement_policy == "Random":
+            cache_line = index * self.associativity + np.random.randint(self.associativity)
+            self.valid_bits[cache_line] = True
+            self.tags[cache_line] = tag
+            for j in range(self.block_size):
+                self.data[cache_line][j] = self.memory.read(address + j)
+            return self.data[cache_line], offset
     
     def write(self, address: int, data: np.ndarray) -> None:
         """
@@ -203,33 +214,41 @@ class Cache:
                             and self.lru[index * self.associativity + j] < self.lru[index * self.associativity + i]:
                             self.lru[index * self.associativity + j] += 1
                         self.lru[index * self.associativity + i] = 0
-                elif self.replacement_policy == "FIFO":
-                    self.fifo[index] = (self.fifo[index] + 1) % self.associativity
                 break
         # Cache miss
         else:
-            for i in range(self.associativity):
-                cache_line = index * self.associativity + i
-                if not self.valid_bits[cache_line] or self.lru[cache_line] == self.associativity - 1:
-                    self.valid_bits[cache_line] = True
-                    self.tags[cache_line] = tag
+            if self.replacement_policy == "LRU":
+                for i in range(self.associativity):
+                    cache_line = index * self.associativity + i
+                    if not self.valid_bits[cache_line] or self.lru[cache_line] == self.associativity - 1:
+                        self.valid_bits[cache_line] = True
+                        self.tags[cache_line] = tag
 
-                    for j in range(self.block_size):
-                        self.data[cache_line][j] = data[j]
-                    
-                    if self.replacement_policy == "LRU":
+                        for j in range(self.block_size):
+                            self.data[cache_line][j] = data[j]
+                        
                         for j in range(self.associativity):
                             if j != i and self.valid_bits[index * self.associativity + j]:
                                 if not (self.valid_bits[index * self.associativity + i] \
                                     and self.lru[index * self.associativity + j] > self.lru[index * self.associativity + i]):
                                     self.lru[index * self.associativity + j] += 1
                             self.lru[index * self.associativity + i] = 0
-                        
-                    elif self.replacement_policy == "FIFO":
-                        self.fifo[index] = (self.fifo[index] + 1) % self.associativity
-                    break
-            else:
-                raise Exception("Something went wrong with cache write")
+                        break
+                else:
+                    raise Exception("Something went wrong with cache write")
+            elif self.replacement_policy == "FIFO":
+                cache_line = index * self.associativity + self.fifo[index]
+                self.valid_bits[cache_line] = True
+                self.tags[cache_line] = tag
+                for j in range(self.block_size):
+                    self.data[cache_line][j] = data[j]
+                self.fifo[index] = (self.fifo[index] + 1) % self.associativity
+            elif self.replacement_policy == "Random":
+                cache_line = index * self.associativity + np.random.randint(self.associativity)
+                self.valid_bits[cache_line] = True
+                self.tags[cache_line] = tag
+                for j in range(self.block_size):
+                    self.data[cache_line][j] = data[j]
                 
         for i in range(self.block_size):
             self.memory.write(address + i, data[i])
