@@ -116,7 +116,7 @@ def test_cache_read_miss_and_hit_direct_mapped(policy):
         assert cache.fifo[ (3 >> cache.offset_size) & (2**cache.index_size -1) ] == 1
 
 @pytest.mark.parametrize("policy", ["LRU"])
-def test_lru_replacement_counters():
+def test_lru_replacement_counters(policy):
     # 2-way, single set to force eviction
     mem = Memory(4)
     for i in range(4):
