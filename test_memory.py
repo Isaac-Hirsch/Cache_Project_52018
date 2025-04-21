@@ -158,29 +158,28 @@ def test_cache_write_through_and_counters():
     # direct-mapped, block_size=2
     mem = Memory(8)
     cache = Cache(num_sets=4, block_size=2, associativity=1, replacement_policy="LRU", memory=mem)
-    # prepare a data block
-    data = np.array([111, 80], dtype=np.byte)
 
     # first write -> miss (write-allocate), writes=1, write_hits=0
-    cache.write(4, data)
-    assert cache.get_writes == 1
-    assert cache.get_write_hits == 0
+    cache.write(4, 80)
+    cache.write(5, 110)
+    assert cache.get_writes == 2
+    assert cache.get_write_hits == 1
     # memory should have received 2 writes
     assert mem.get_writes == 2
     # now reading address 4 => hit
     _, _ = cache.read(4)
     assert cache.get_loads == 1
     # second write to same block -> hit
-    cache.write(4, data)
-    assert cache.get_writes == 2
-    assert cache.get_write_hits == 1
-    assert mem.get_writes == 4  # two more byte‑writes
+    cache.write(4, 80)
+    assert cache.get_writes == 3
+    assert cache.get_write_hits == 2
+    assert mem.get_writes == 3  # two more byte‑writes
 
 def test_cache_reset():
     mem = Memory(16)
     cache = Cache(num_sets=4, block_size=2, associativity=2, replacement_policy="LRU", memory=mem)
     cache.read(0)
-    cache.write(4, np.array([1,2], dtype=np.byte))
+    cache.write(4, 2)
     assert cache.get_loads > 0 or cache.get_writes > 0
     cache.cache_reset()
     # counters zeroed
