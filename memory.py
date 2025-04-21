@@ -99,7 +99,7 @@ class Cache:
         #This does not include bits used for replacement policy
         self.cache_line_size = self.block_size + self.tag_size + 1 # Valid bit
         
-        self.tags = np.zeros((self.cache_lines, self.tag_size), dtype=np.int64)
+        self.tags = np.zeros((self.cache_lines,), dtype=np.int64)
         self.valid_bits = np.zeros((self.cache_lines, ), dtype=np.bool_)
         self.data = np.zeros((self.cache_lines, block_size), dtype=np.byte)
 
@@ -144,7 +144,7 @@ class Cache:
                         if j != i and self.valid_bits[index * self.associativity + j] \
                             and self.lru[index * self.associativity + j] < self.lru[index * self.associativity + i]:
                             self.lru[index * self.associativity + j] += 1
-                        self.lru[index * self.associativity + i] = 0
+                    self.lru[index * self.associativity + i] = 0
                 return self.data[cache_line], offset
 
         # Cache miss
@@ -163,7 +163,7 @@ class Cache:
                             if not (self.valid_bits[index * self.associativity + i] \
                                 and self.lru[index * self.associativity + j] > self.lru[index * self.associativity + i]):
                                 self.lru[index * self.associativity + j] += 1
-                        self.lru[index * self.associativity + i] = 0
+                    self.lru[index * self.associativity + i] = 0
                     
                     return self.data[cache_line], offset
 
@@ -179,12 +179,23 @@ class Cache:
             return self.data[cache_line], offset
         
         elif self.replacement_policy == "Random":
-            cache_line = index * self.associativity + np.random.randint(self.associativity)
-            self.valid_bits[cache_line] = True
-            self.tags[cache_line] = tag
-            for j in range(self.block_size):
-                self.data[cache_line][j] = self.memory.read(block_address + j)
-            return self.data[cache_line], offset
+            for j in range(self.associativity):
+                cache_line = index * self.associativity + j
+                if not self.valid_bits[cache_line]:
+                    self.valid_bits[cache_line] = True
+                    self.tags[cache_line] = tag
+
+                    for j in range(self.block_size):
+                        self.data[cache_line][j] = self.memory.read(block_address + j)
+                    
+                    return self.data[cache_line], offset
+            else:
+                cache_line = index * self.associativity + np.random.randint(self.associativity)
+                self.valid_bits[cache_line] = True
+                self.tags[cache_line] = tag
+                for j in range(self.block_size):
+                    self.data[cache_line][j] = self.memory.read(block_address + j)
+                return self.data[cache_line], offset
     
     def write(self, address: int, data: np.ndarray) -> None:
         """
@@ -215,7 +226,7 @@ class Cache:
                         if j != i and self.valid_bits[index * self.associativity + j] \
                             and self.lru[index * self.associativity + j] < self.lru[index * self.associativity + i]:
                             self.lru[index * self.associativity + j] += 1
-                        self.lru[index * self.associativity + i] = 0
+                    self.lru[index * self.associativity + i] = 0
                 break
         # Cache miss
         else:
@@ -234,7 +245,7 @@ class Cache:
                                 if not (self.valid_bits[index * self.associativity + i] \
                                     and self.lru[index * self.associativity + j] > self.lru[index * self.associativity + i]):
                                     self.lru[index * self.associativity + j] += 1
-                            self.lru[index * self.associativity + i] = 0
+                        self.lru[index * self.associativity + i] = 0
                         break
                 else:
                     raise Exception("Something went wrong with cache write")
@@ -246,11 +257,22 @@ class Cache:
                     self.data[cache_line][j] = data[j]
                 self.fifo[index] = (self.fifo[index] + 1) % self.associativity
             elif self.replacement_policy == "Random":
-                cache_line = index * self.associativity + np.random.randint(self.associativity)
-                self.valid_bits[cache_line] = True
-                self.tags[cache_line] = tag
-                for j in range(self.block_size):
-                    self.data[cache_line][j] = data[j]
+                for i in range(self.associativity):
+                    cache_line = index * self.associativity + i
+                    if not self.valid_bits[cache_line]:
+                        self.valid_bits[cache_line] = True
+                        self.tags[cache_line] = tag
+
+                        for j in range(self.block_size):
+                            self.data[cache_line][j] = data[j]
+                        
+                        break
+                else:
+                    cache_line = index * self.associativity + np.random.randint(self.associativity)
+                    self.valid_bits[cache_line] = True
+                    self.tags[cache_line] = tag
+                    for j in range(self.block_size):
+                        self.data[cache_line][j] = data[j]
                 
         for i in range(self.block_size):
             self.memory.write(block_address + i, data[i])

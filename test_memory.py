@@ -159,7 +159,7 @@ def test_cache_write_through_and_counters():
     mem = Memory(8)
     cache = Cache(num_sets=4, block_size=2, associativity=1, replacement_policy="LRU", memory=mem)
     # prepare a data block
-    data = np.array([111, 222], dtype=np.byte)
+    data = np.array([111, 80], dtype=np.byte)
 
     # first write -> miss (write-allocate), writes=1, write_hits=0
     cache.write(4, data)
