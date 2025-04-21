@@ -133,6 +133,7 @@ class Cache:
         self.loads += 1
 
         tag, index, offset = self.get_address_split(address)
+        block_address = address - offset
 
         for i in range(self.associativity):
             cache_line = index * self.associativity + i
@@ -155,7 +156,7 @@ class Cache:
                     self.tags[cache_line] = tag
 
                     for j in range(self.block_size):
-                        self.data[cache_line][j] = self.memory.read(address + j)
+                        self.data[cache_line][j] = self.memory.read(block_address + j)
                     
                     for j in range(self.associativity):
                         if j != i and self.valid_bits[index * self.associativity + j]:
@@ -173,7 +174,7 @@ class Cache:
             self.valid_bits[cache_line] = True
             self.tags[cache_line] = tag
             for j in range(self.block_size):
-                self.data[cache_line][j] = self.memory.read(address + j)
+                self.data[cache_line][j] = self.memory.read(block_address + j)
             self.fifo[index] = (self.fifo[index] + 1) % self.associativity
             return self.data[cache_line], offset
         
@@ -182,7 +183,7 @@ class Cache:
             self.valid_bits[cache_line] = True
             self.tags[cache_line] = tag
             for j in range(self.block_size):
-                self.data[cache_line][j] = self.memory.read(address + j)
+                self.data[cache_line][j] = self.memory.read(block_address + j)
             return self.data[cache_line], offset
     
     def write(self, address: int, data: np.ndarray) -> None:
@@ -199,6 +200,7 @@ class Cache:
         self.writes += 1
 
         tag, index, offset = self.get_address_split(address)
+        block_address = address - offset
 
         for i in range(self.associativity):
             cache_line = index * self.associativity + i
@@ -251,7 +253,7 @@ class Cache:
                     self.data[cache_line][j] = data[j]
                 
         for i in range(self.block_size):
-            self.memory.write(address + i, data[i])
+            self.memory.write(block_address + i, data[i])
 
     def cache_reset(self) -> None:
         """

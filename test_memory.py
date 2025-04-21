@@ -89,10 +89,10 @@ def test_get_address_split_and_bounds():
 @pytest.mark.parametrize("policy", ["LRU", "FIFO", "Random"])
 def test_cache_read_miss_and_hit_direct_mapped(policy):
     # Direct-mapped: num_sets=4, assoc=1, block_size=2
-    mem = Memory(8)
+    mem = Memory(16)
     # fill memory 0..7 with unique bytes
-    for i in range(8):
-        mem.memory[i] = np.byte(i * 10)
+    for i in range(16):
+        mem.memory[i] = np.byte(i * 5)
     cache = Cache(num_sets=4, block_size=2, associativity=1, replacement_policy=policy, memory=mem)
 
     # First read of address=2 -> miss
@@ -102,7 +102,7 @@ def test_cache_read_miss_and_hit_direct_mapped(policy):
     # It should have loaded 2 bytes: at 2 and 3
     assert mem.get_reads == 2
     assert offset == (2 & (2**cache.offset_size - 1))
-    assert np.array_equal(block, np.array([20, 30], dtype=np.byte))
+    assert np.array_equal(block, np.array([10, 15], dtype=np.byte))
 
     # Second read of address=3 -> same block, so hit
     block2, offset2 = cache.read(3)
@@ -113,7 +113,10 @@ def test_cache_read_miss_and_hit_direct_mapped(policy):
     assert np.array_equal(block2, block)
     # For FIFO, ensure the pointer advanced on the hit
     if policy == "FIFO":
-        assert cache.fifo[ (3 >> cache.offset_size) & (2**cache.index_size -1) ] == 1
+        assert cache.fifo[0] == 0
+        assert cache.fifo[1] == 0
+        assert cache.fifo[2] == 0
+        assert cache.fifo[3] == 0
 
 @pytest.mark.parametrize("policy", ["LRU"])
 def test_lru_replacement_counters(policy):
