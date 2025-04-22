@@ -4,7 +4,6 @@ This file implements the CPU class, which is responsible for executing instructi
 
 import numpy as np
 from memory import Memory, Cache
-import math
 
 DOUBLE_SIZE = 8
 
@@ -92,21 +91,26 @@ class CPU:
         self.registers[2] = self.addDouble(self.registers[0], self.registers[1])
         self.storeDouble(address3, self.registers[2])
     
-    def loadMultDouble(self, address1: int, address2: int, address3: int) -> None:
+    def loadMultDouble(self, address1: int, address2: int, address3: int) -> np.float64:
         """
         Loads two doubles, multiplies them, and stores the result in a third address.
         Args:
             address1 (int): The address of the first double.
             address2 (int): The address of the second double.
             address3 (int): The address to store the result.
+        
+        Returns:
+            np.float64: The result of the multiplication.
         """
 
         self.registers[0] = self.loadDouble(address1)
         self.registers[1] = self.loadDouble(address2)
         self.registers[2] = self.multDoubles(self.registers[0], self.registers[1])
         self.storeDouble(address3, self.registers[2])
+
+        return self.registers[2]
     
-    def loadFMADouble(self, address1: int, address2: int, address3: int, address4: int) -> None:
+    def loadFMADouble(self, address1: int, address2: int, address3: int, address4: int) -> np.float64:
         """
         Loads two doubles, multiplies them, adds the result to a third double, and stores the result in a fourth address.
         Args:
@@ -114,6 +118,9 @@ class CPU:
             address2 (int): The address of the second double to multiply.
             address3 (int): The address of the double to add.
             address4 (int): The address to store the result.
+        
+        Returns:
+            np.float64: The result of the FMA operation.
         """
 
         self.registers[0] = self.loadDouble(address1)
@@ -122,7 +129,10 @@ class CPU:
         self.registers[0] = self.loadDouble(address3)
         self.registers[1] = self.addDouble(self.registers[0], self.registers[2])
         self.storeDouble(address4, self.registers[1])
+
+        return self.registers[1]
     
+    @property
     def getInstructionCount(self) -> int:
         """
         Get the number of instructions executed.
