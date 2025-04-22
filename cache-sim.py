@@ -10,12 +10,18 @@ from algorithims import daxpy, mxm, mxm_tiled
 import math
 
 def main(args):
+    if args.t:
+        args.d = 3
+
     if args.a == "daxpy":
         # args.d memory is needed to store each of the 3 vectors with 1 extra double needed for the scalar
         memsize = math.ceil((3 * args.d + 1) * 8 / args.b) * args.b
     else:
         # args.d * args.d memory is needed to store each of the 3 matrices
         memsize = math.ceil(3 * args.d * args.d * 8 / args.b) * args.b
+    
+    # Ensures that there is at least 1 tag bit.
+    memsize = max(memsize, args.c * 2)
     
     mem = Memory(memsize)
     assert args.c % (args.b * args.n) == 0, "Cache size must be a multiple of the block size and associativity."
@@ -29,11 +35,27 @@ def main(args):
     )
     cpu = CPU(mem, cache)
     if args.a == "daxpy":
-        results = daxpy(cpu, args.d, args.p)
+        if args.t:
+            a = np.float64(3.0)
+            x = np.ndarray(list(range(9)), dtype=np.float64)
+            y = np.ndarray(list(range(0, 18, 2)), dtype=np.float64)
+        else:
+            a, x, y = None, None, None
+        results = daxpy(cpu, args.d, args.p, a, x, y)
     elif args.a == "mxm":
-        results = mxm(cpu, args.d, args.p)
+        if args.t:
+            A = np.ndarray([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.float64)
+            B = np.ndarray([[0, 2, 4], [6, 8, 10], [12, 14, 16]], dtype=np.float64)
+        else:
+            A, B = None, None
+        results = mxm(cpu, args.d, args.p, A, B)
     elif args.a == "mxm_block":
-        results = mxm_tiled(cpu, args.d, args.f, args.p)
+        if args.t:
+            A = np.ndarray([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.float64)
+            B = np.ndarray([[0, 2, 4], [6, 8, 10], [12, 14, 16]], dtype=np.float64)
+        else:
+            A, B = None, None
+        results = mxm_tiled(cpu, args.d, args.f, args.p, A, B)
     
     print("INPUTS====================================")
     print(f"Ram Size =                          {memsize} bytes")
@@ -87,11 +109,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-p", help="Enables printing of the resulting “solution” matrix product or daxpy vector", type=bool, default=False
+        "-p", help="Enables printing of the resulting “solution” matrix product or daxpy vector", action="store_true"
     )
 
     parser.add_argument(
         "-f", help="The blocking factor for use when using the blocked matrix multiplication algorithm.", type=int, default=32
+    )
+
+    parser.add_argument(
+        "-t", help="Whether to use test initialization for vectors/matracies", action="store_true"
     )
 
     args = parser.parse_args()

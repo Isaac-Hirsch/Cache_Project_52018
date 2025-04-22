@@ -86,7 +86,7 @@ def test_get_address_split_and_bounds():
     with pytest.raises(AssertionError):
         cache.get_address_split(256)
 
-@pytest.mark.parametrize("policy", ["LRU", "FIFO", "Random"])
+@pytest.mark.parametrize("policy", ["LRU", "FIFO", "random"])
 def test_cache_read_miss_and_hit_direct_mapped(policy):
     # Direct-mapped: num_sets=4, assoc=1, block_size=2
     mem = Memory(16)
@@ -143,7 +143,7 @@ def test_random_policy_basic():
     # give memory non-zero values
     for i in range(4):
         mem.memory[i] = np.ubyte((i+1)*5)
-    cache = Cache(num_sets=1, block_size=1, associativity=2, replacement_policy="Random", memory=mem)
+    cache = Cache(num_sets=1, block_size=1, associativity=2, replacement_policy="random", memory=mem)
 
     # two different addresses must fill both lines before eviction
     cache.read(0)

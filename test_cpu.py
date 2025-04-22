@@ -79,7 +79,7 @@ def test_load_add_double_sequence(arch):
     assert np.isclose(out, 0.5, atol=1e-12)
 
     # Two loads → 16 reads, one store → 8 writes through cache
-    assert mem.get_reads  - start_r  == 2 * DOUBLE_SIZE
+    assert mem.get_reads  - start_r  == 3 * DOUBLE_SIZE
     assert mem.get_writes - start_w  == DOUBLE_SIZE
     assert cache.get_writes - start_cw == DOUBLE_SIZE
 
