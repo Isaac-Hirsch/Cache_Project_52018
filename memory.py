@@ -23,7 +23,7 @@ class Memory:
 
     def read(self, address: int) -> np.ubyte:
         """"
-        Reads a byte from the memory at the given address.
+        Reads a ubyte from the memory at the given address.
         """
         assert 0 <= address < self.memory_size, "Address out of bounds"
     
@@ -32,7 +32,7 @@ class Memory:
     
     def write(self, address: int, data: np.ubyte) -> None:
         """
-        Writes a byte to the memory at the given address.
+        Writes a ibyte to the memory at the given address.
         """
         assert 0 <= address < self.memory_size, "Address out of bounds"
         assert isinstance(data, np.ubyte), "Data must be of type np.ubyte"
@@ -80,7 +80,7 @@ class Cache:
         assert block_size > 0, "Block size must be greater than 0"
         assert associativity > 0, "Associativity must be greater than 0"
         assert num_sets > 0, "Cache lines must be greater than 0"
-        assert replacement_policy in ["LRU", "FIFO", "Random"], "Invalid replacement policy"
+        assert replacement_policy in ["LRU", "FIFO", "random"], "Invalid replacement policy"
     
         self.block_size = block_size
         self.associativity = associativity
@@ -106,7 +106,7 @@ class Cache:
             self.lru = np.zeros((self.cache_lines, ), dtype=np.ubyte)
         
         if replacement_policy == "FIFO":
-            self.fifo = np.zeros((self.num_sets, ), dtype=np.ubyte)
+            self.fifo = np.zeros((self.num_sets, ), dtype=int)
         
         self.loads = 0
         self.load_hits = 0
@@ -162,7 +162,7 @@ class Cache:
                             if not (self.valid_bits[index * self.associativity + i] \
                                 and self.lru[index * self.associativity + j] > self.lru[index * self.associativity + i]):
                                 self.lru[index * self.associativity + j] += 1
-                    self.lru[index * self.associativity + i] = 0
+                    self.lru[cache_line] = 0
                     
                     return self.data[cache_line], offset
 
@@ -177,7 +177,7 @@ class Cache:
             self.fifo[index] = (self.fifo[index] + 1) % self.associativity
             return self.data[cache_line], offset
         
-        elif self.replacement_policy == "Random":
+        elif self.replacement_policy == "random":
             for j in range(self.associativity):
                 cache_line = index * self.associativity + j
                 if not self.valid_bits[cache_line]:
@@ -235,6 +235,8 @@ class Cache:
                         self.valid_bits[cache_line] = True
                         self.tags[cache_line] = tag
 
+                        for j in range(self.block_size):
+                            self.data[cache_line][j] = self.memory.read(block_address + j)
                         self.data[cache_line][offset] = data
                         
                         for j in range(self.associativity):
@@ -250,14 +252,21 @@ class Cache:
                 cache_line = index * self.associativity + self.fifo[index]
                 self.valid_bits[cache_line] = True
                 self.tags[cache_line] = tag
+
+                for j in range(self.block_size):
+                    self.data[cache_line][j] = self.memory.read(block_address + j)
+
                 self.data[cache_line][offset] = data
                 self.fifo[index] = (self.fifo[index] + 1) % self.associativity
-            elif self.replacement_policy == "Random":
+            elif self.replacement_policy == "random":
                 for i in range(self.associativity):
                     cache_line = index * self.associativity + i
                     if not self.valid_bits[cache_line]:
                         self.valid_bits[cache_line] = True
                         self.tags[cache_line] = tag
+
+                        for j in range(self.block_size):
+                            self.data[cache_line][j] = self.memory.read(block_address + j)
 
                         self.data[cache_line][offset] = data
                         
@@ -266,6 +275,10 @@ class Cache:
                     cache_line = index * self.associativity + np.random.randint(self.associativity)
                     self.valid_bits[cache_line] = True
                     self.tags[cache_line] = tag
+
+                    for j in range(self.block_size):
+                        self.data[cache_line][j] = self.memory.read(block_address + j)
+
                     self.data[cache_line][offset] = data
                 
         self.memory.write(address=address, data=data)

@@ -6,15 +6,16 @@ import numpy as np
 import argparse
 from cpu import CPU
 from memory import Memory, Cache
-from algorithims import daxpy, mxm, mxm_block
+from algorithims import daxpy, mxm, mxm_tiled
+import math
 
 def main(args):
     if args.a == "daxpy":
         # args.d memory is needed to store each of the 3 vectors with 1 extra double needed for the scalar
-        memsize = (3 * args.d + 1) * 8
+        memsize = math.ceil((3 * args.d + 1) * 8 / args.b) * args.b
     else:
         # args.d * args.d memory is needed to store each of the 3 matrices
-        memsize = 3 * args.d * args.d * 8
+        memsize = math.ceil(3 * args.d * args.d * 8 / args.b) * args.b
     
     mem = Memory(memsize)
     assert args.c % (args.b * args.n) == 0, "Cache size must be a multiple of the block size and associativity."
@@ -32,7 +33,7 @@ def main(args):
     elif args.a == "mxm":
         results = mxm(cpu, args.d, args.p)
     elif args.a == "mxm_block":
-        results = mxm_block(cpu, args.d, args.f, args.p)
+        results = mxm_tiled(cpu, args.d, args.f, args.p)
     
     print("INPUTS====================================")
     print(f"Ram Size =                          {memsize} bytes")
@@ -49,10 +50,10 @@ def main(args):
     print(f"Instruction count:                  {results['instruction_count']}")
     print(f"Read hits:                          {results['load_hits']}")
     print(f"Read misses:                        {results['load_misses']}")
-    print(f"Read miss rate:                     {100 * results['load_misses'] / results['loads']:.2%}%")
+    print(f"Read miss rate:                     {results['load_misses'] / results['loads']:.2%}")
     print(f"Write hits:                         {results['write_hits']}")
     print(f"Write misses:                       {results['write_misses']}")
-    print(f"Write miss rate:                    {100 * results['write_misses'] / results['writes']:.2%}%")
+    print(f"Write miss rate:                    {results['write_misses'] / results['writes']:.2%}")
 
 
 if __name__ == "__main__":
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-r", help="The replacement policy", type=str, default="LRU", choices=["LRU", "FIFO", "Random"]
+        "-r", help="The replacement policy", type=str, default="LRU", choices=["LRU", "FIFO", "random"]
     )
 
     parser.add_argument(
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-f", help="The blocking factor for use when using the blocked matrix multiplication algorithm.", type=int, defualt=32
+        "-f", help="The blocking factor for use when using the blocked matrix multiplication algorithm.", type=int, default=32
     )
 
     args = parser.parse_args()

@@ -15,6 +15,9 @@ class CPU:
         self.registers = np.zeros(3, dtype=np.float64)
 
         self.instruction_count = 0
+
+        self._double_bytes_array = np.zeros(DOUBLE_SIZE, dtype=np.ubyte)
+        self._double = np.zeros(1, dtype=np.float64)
     
     def loadDouble(self, address: int) -> np.float64:
         """
@@ -28,12 +31,12 @@ class CPU:
         """
 
         self.instruction_count += 1
-        result = np.zeros(DOUBLE_SIZE, dtype=np.ubyte)
 
         for i in range(DOUBLE_SIZE):
-            result[i] = self.memory.readByte(address + i)
+            block, offset = self.cache.read(address + i)
+            self._double_bytes_array[i] = block[offset]
 
-        return result.view(np.float64)[0]
+        return self._double_bytes_array.view(np.float64)[0]
     
     def storeDouble(self, address: int, value: np.float64) -> None:
         """
@@ -45,7 +48,8 @@ class CPU:
         """
 
         self.instruction_count += 1
-        value_bytes = np.array(value, dtype=np.float64).view(np.ubyte)
+        self._double[0] = value
+        value_bytes = self._double.view(np.ubyte)
         for i in range(DOUBLE_SIZE):
             self.cache.write(address + i, value_bytes[i])
 
@@ -77,23 +81,32 @@ class CPU:
         self.instruction_count += 1
         return value1 * value2
     
-    def loadAddDouble(self, address1: int, address2: int, address3: int) -> None:
+    def loadAddDouble(self, address1: int, address2: int, address3: int) -> np.float64:
         """
         Loads two doubles, adds them, and stores the result in a third address.
+        This method is uses 4 instructions.
+
         Args:
             address1 (int): The address of the first double.
             address2 (int): The address of the second double.
             address3 (int): The address to store the result.
+        
+        Returns:
+            np.float64: The result of the addition.
         """
 
         self.registers[0] = self.loadDouble(address1)
         self.registers[1] = self.loadDouble(address2)
         self.registers[2] = self.addDouble(self.registers[0], self.registers[1])
         self.storeDouble(address3, self.registers[2])
+
+        return self.registers[2]
     
     def loadMultDouble(self, address1: int, address2: int, address3: int) -> np.float64:
         """
         Loads two doubles, multiplies them, and stores the result in a third address.
+        This method is uses 4 instructions.
+
         Args:
             address1 (int): The address of the first double.
             address2 (int): The address of the second double.
@@ -113,6 +126,8 @@ class CPU:
     def loadFMADouble(self, address1: int, address2: int, address3: int, address4: int) -> np.float64:
         """
         Loads two doubles, multiplies them, adds the result to a third double, and stores the result in a fourth address.
+        This method is uses 6 instructions.
+
         Args:
             address1 (int): The address of the first double to multiply.
             address2 (int): The address of the second double to multiply.
