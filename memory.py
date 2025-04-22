@@ -5,7 +5,6 @@ This module implements a simple memory and cache system as described in project
 
 import numpy as np
 import math
-import os
 
 class Memory:
     def __init__(self, memory_size: int):
@@ -16,13 +15,13 @@ class Memory:
             memory_size (int): Size of the memory in bytes.
         """
         self.memory_size = memory_size
-        self.memory = np.zeros((memory_size, ), dtype=np.byte)
+        self.memory = np.zeros((memory_size, ), dtype=np.ubyte)
         self.address_size = math.ceil(np.log2(memory_size))
 
         self.reads = 0
         self.writes = 0
 
-    def read(self, address: int) -> np.byte:
+    def read(self, address: int) -> np.ubyte:
         """"
         Reads a byte from the memory at the given address.
         """
@@ -31,12 +30,12 @@ class Memory:
         self.reads += 1
         return self.memory[address]
     
-    def write(self, address: int, data: np.byte) -> None:
+    def write(self, address: int, data: np.ubyte) -> None:
         """
         Writes a byte to the memory at the given address.
         """
         assert 0 <= address < self.memory_size, "Address out of bounds"
-        assert isinstance(data, np.byte), "Data must be of type np.byte"
+        assert isinstance(data, np.ubyte), "Data must be of type np.ubyte"
     
         self.memory[address] = data
 
@@ -101,13 +100,13 @@ class Cache:
         
         self.tags = np.zeros((self.cache_lines,), dtype=np.int64)
         self.valid_bits = np.zeros((self.cache_lines, ), dtype=np.bool_)
-        self.data = np.zeros((self.cache_lines, block_size), dtype=np.byte)
+        self.data = np.zeros((self.cache_lines, block_size), dtype=np.ubyte)
 
         if replacement_policy == "LRU":
-            self.lru = np.zeros((self.cache_lines, ), dtype=np.byte)
+            self.lru = np.zeros((self.cache_lines, ), dtype=np.ubyte)
         
         if replacement_policy == "FIFO":
-            self.fifo = np.zeros((self.num_sets, ), dtype=np.byte)
+            self.fifo = np.zeros((self.num_sets, ), dtype=np.ubyte)
         
         self.loads = 0
         self.load_hits = 0
@@ -127,7 +126,7 @@ class Cache:
 
         return tag, index, offset
         
-    def read(self, address: int) -> tuple[np.byte, int]:
+    def read(self, address: int) -> tuple[np.ubyte, int]:
         assert 0 <= address < self.memory.memory_size, "Address out of bounds"
     
         self.loads += 1
@@ -197,16 +196,16 @@ class Cache:
                     self.data[cache_line][j] = self.memory.read(block_address + j)
                 return self.data[cache_line], offset
     
-    def write(self, address: int, data: np.byte) -> None:
+    def write(self, address: int, data: np.ubyte) -> None:
         """
         Writes a block of data using a write-through policy.
 
         Args:
             address (int): Address to write to.
-            data (np.byte): Data to write.
+            data (np.ubyte): Data to write.
         """
         assert 0 <= address < self.memory.memory_size, "Address out of bounds"
-        data = np.byte(data)
+        data = np.ubyte(data)
     
         self.writes += 1
 
@@ -300,10 +299,18 @@ class Cache:
         return self.load_hits
     
     @property
+    def get_load_misses(self) -> int:
+        return self.loads - self.load_hits
+    
+    @property
     def get_writes(self) -> int:
         return self.writes
     
     @property
     def get_write_hits(self) -> int:
         return self.write_hits
+    
+    @property
+    def get_write_misses(self) -> int:
+        return self.writes - self.write_hits
         

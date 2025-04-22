@@ -29,18 +29,18 @@ def test_memory_read_out_of_bounds(addr):
 def test_memory_write_out_of_bounds(addr):
     m = Memory(32)
     with pytest.raises(AssertionError):
-        m.write(addr, np.byte(0))
+        m.write(addr, np.ubyte(0))
 
 def test_memory_write_type_check():
     m = Memory(16)
-    # writing an int (not np.byte) should fail
+    # writing an int (not np.ubyte) should fail
     with pytest.raises(AssertionError):
         m.write(0, 123)
 
 def test_memory_read_write_and_counters():
     m = Memory(8)
     # write a byte, then read it back
-    data = np.byte(42)
+    data = np.ubyte(42)
     m.write(3, data)
     assert m.get_writes == 1
     assert m.read(3) == data
@@ -48,7 +48,7 @@ def test_memory_read_write_and_counters():
 
 def test_memory_reset():
     m = Memory(8)
-    m.write(2, np.byte(7))
+    m.write(2, np.ubyte(7))
     m.read(2)
     assert m.get_writes == 1 and m.get_reads == 1
     m.reset()
@@ -92,7 +92,7 @@ def test_cache_read_miss_and_hit_direct_mapped(policy):
     mem = Memory(16)
     # fill memory 0..7 with unique bytes
     for i in range(16):
-        mem.memory[i] = np.byte(i * 5)
+        mem.memory[i] = np.ubyte(i * 5)
     cache = Cache(num_sets=4, block_size=2, associativity=1, replacement_policy=policy, memory=mem)
 
     # First read of address=2 -> miss
@@ -102,7 +102,7 @@ def test_cache_read_miss_and_hit_direct_mapped(policy):
     # It should have loaded 2 bytes: at 2 and 3
     assert mem.get_reads == 2
     assert offset == (2 & (2**cache.offset_size - 1))
-    assert np.array_equal(block, np.array([10, 15], dtype=np.byte))
+    assert np.array_equal(block, np.array([10, 15], dtype=np.ubyte))
 
     # Second read of address=3 -> same block, so hit
     block2, offset2 = cache.read(3)
@@ -123,7 +123,7 @@ def test_lru_replacement_counters(policy):
     # 2-way, single set to force eviction
     mem = Memory(4)
     for i in range(4):
-        mem.memory[i] = np.byte(i + 1)
+        mem.memory[i] = np.ubyte(i + 1)
     cache = Cache(num_sets=1, block_size=1, associativity=2, replacement_policy="LRU", memory=mem)
 
     # load addr 0,1 => two misses
@@ -142,7 +142,7 @@ def test_random_policy_basic():
     mem = Memory(4)
     # give memory non-zero values
     for i in range(4):
-        mem.memory[i] = np.byte((i+1)*5)
+        mem.memory[i] = np.ubyte((i+1)*5)
     cache = Cache(num_sets=1, block_size=1, associativity=2, replacement_policy="Random", memory=mem)
 
     # two different addresses must fill both lines before eviction
