@@ -5,6 +5,7 @@ This module implements a simple memory and cache system as described in project
 
 import numpy as np
 import math
+from typing import Tuple
 try:
     from numba import jit
 except ImportError:
@@ -22,7 +23,7 @@ def associative_tag_search(
             tag: int,
             index: int,
             associativity: int
-        ) -> tuple[np.ndarray, int]:
+        ) -> Tuple[np.ndarray, int]:
     """
     Searches for a tag in the given index of the cache.
     
@@ -180,7 +181,7 @@ class Cache:
         self._offset_mask = 2 ** self.offset_size - 1
         self._associativity_check = np.zeros((self.associativity, ), dtype=np.bool_)
     
-    def get_address_split(self, address: int) -> tuple[int, int, int]:
+    def get_address_split(self, address: int) -> Tuple[int, int, int]:
         """
         Splits the address into tag, index, and offset.
         """
@@ -192,7 +193,7 @@ class Cache:
 
         return tag, index, offset
     
-    def read(self, address: int) -> tuple[np.float64, int]:
+    def read(self, address: int) -> Tuple[np.float64, int]:
         assert 0 <= address < self.memory.memory_size, "Address out of bounds"
     
         self.loads += 1
