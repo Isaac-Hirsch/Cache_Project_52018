@@ -4,10 +4,12 @@ This script simulates a cache system with a given number of sets and blocks per 
 
 import numpy as np
 import argparse
-from cpu import CPU
-from memory import Memory, Cache
+from cpu_double import CPU
+from memory_double import Memory, Cache
 from algorithims import daxpy, mxm, mxm_tiled
 import math
+
+DOUBLE_SIZE = 8
 
 def main(args):
     if args.t:
@@ -15,16 +17,17 @@ def main(args):
 
     if args.a == "daxpy":
         # args.d memory is needed to store each of the 3 vectors with 1 extra double needed for the scalar
-        memsize = math.ceil((3 * args.d + 1) * 8 / args.b) * args.b
+        memsize = DOUBLE_SIZE * math.ceil((3 * args.d + 1) / args.b) * args.b
     else:
         # args.d * args.d memory is needed to store each of the 3 matrices
-        memsize = math.ceil(3 * args.d * args.d * 8 / args.b) * args.b
+        memsize = DOUBLE_SIZE * math.ceil(3 * args.d * args.d / args.b) * args.b
     
-    # Ensures that there is at least 1 tag bit.
-    memsize = max(memsize, args.c * 2)
+    # Ensures that there is at least 1 tag bit. TODO change to 0 bits
+    memsize = max(memsize, args.c)
+    args.b //= DOUBLE_SIZE # Convert to number of doubles
     
     mem = Memory(memsize)
-    assert args.c % (args.b * args.n) == 0, "Cache size must be a multiple of the block size and associativity."
+    assert args.c % (args.b * args.n) == 0, "Cache size must be a multiple of the block size, associativity, and word size."
     num_sets = args.c // (args.b * args.n)
     cache = Cache(
         num_sets=num_sets,

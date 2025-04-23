@@ -1,9 +1,6 @@
 import numpy as np
-from cpu import CPU
-from memory import Memory, Cache
+from cpu_double import CPU
 from typing import Optional
-
-DOUBLE_SIZE = 8
 
 def daxpy(
         cpu: CPU,
@@ -50,20 +47,20 @@ def daxpy(
     # z is stored at addresses 2n + 1 to 3n
     cpu.storeDouble(0, a)
     for i in range(1, n + 1):
-        cpu.storeDouble((i) * DOUBLE_SIZE,       x[i - 1])
-        cpu.storeDouble((n + i) * DOUBLE_SIZE,   y[i - 1])
+        cpu.storeDouble((i),       x[i - 1])
+        cpu.storeDouble((n + i),   y[i - 1])
     
     for i in range(1, n + 1):
         address_a = 0
-        address_x = i * DOUBLE_SIZE
-        address_y = (n + i) * DOUBLE_SIZE
-        address_z = (2 * n + i) * DOUBLE_SIZE
+        address_x = i
+        address_y = (n + i)
+        address_z = (2 * n + i)
         z[i-1] = cpu.loadFMADouble(address_a, address_x, address_y, address_z)
         assert np.isclose(z[i-1], intended_z[i - 1]), f"z[{i - 1}] = {z[i-1]}, intended z[{i}] = {intended_z[i - 1]}"
     
     if print_results:
         for i in range(n):
-            address = (2 * n + i + 1) * DOUBLE_SIZE
+            address = (2 * n + i + 1)
             z[i] = cpu.loadDouble(address)
         print(f"z:\n{z}")
     
@@ -120,17 +117,17 @@ def mxm(
     # C is stored at addresses 2n^2 to 3n^2
     for i in range(n):
         for j in range(n):
-            cpu.storeDouble((i * n + j) * DOUBLE_SIZE,              A[i][j])
-            cpu.storeDouble((n * n + i * n + j) * DOUBLE_SIZE,      B[i][j])
-            cpu.storeDouble((2 * n * n + i * n + j) * DOUBLE_SIZE,  C[i][j])
+            cpu.storeDouble((i * n + j),              A[i][j])
+            cpu.storeDouble((n * n + i * n + j),      B[i][j])
+            cpu.storeDouble((2 * n * n + i * n + j),  C[i][j])
     
     for i in range(n):
         for j in range(n):
-            addressC = (2 * n * n + i * n + j) * DOUBLE_SIZE
+            addressC = (2 * n * n + i * n + j)
             temp = cpu.loadDouble(addressC)
             for k in range(n):
-                addressA = (i * n + k) * DOUBLE_SIZE
-                addressB = (n * n + k * n + j) * DOUBLE_SIZE
+                addressA = (i * n + k)
+                addressB = (n * n + k * n + j)
                 A_ik = cpu.loadDouble(addressA)
                 B_jk = cpu.loadDouble(addressB)
                 mult_step = cpu.multDoubles(A_ik, B_jk)
@@ -142,7 +139,7 @@ def mxm(
     if print_results:
         for i in range(n):
             for j in range(n):
-                address = (2 * n * n + i * n + j) * DOUBLE_SIZE
+                address = (2 * n * n + i * n + j)
                 C[i][j] = cpu.loadDouble(address)
         print(f"C:\n{C}")
     
@@ -202,27 +199,27 @@ def mxm_tiled(
     # C is stored at addresses 2n^2 to 3n^2
     for i in range(n):
         for j in range(n):
-            cpu.storeDouble((i * n + j) * DOUBLE_SIZE,              A[i][j])
-            cpu.storeDouble((n * n + i * n + j) * DOUBLE_SIZE,      B[i][j])
-            cpu.storeDouble((2 * n * n + i * n + j) * DOUBLE_SIZE,  C[i][j])
+            cpu.storeDouble((i * n + j),              A[i][j])
+            cpu.storeDouble((n * n + i * n + j),      B[i][j])
+            cpu.storeDouble((2 * n * n + i * n + j),  C[i][j])
     
     for i in range(0, n, tile_size):
         for j in range(0, n, tile_size):
             for ii in range(i, min(i + tile_size, n)):
                 for jj in range(j, min(j + tile_size, n)):
-                    addressC = (2 * n * n + ii * n + jj) * DOUBLE_SIZE
+                    addressC = (2 * n * n + ii * n + jj)
                     temp = cpu.loadDouble(addressC)
                     for k in range(0, n, tile_size):
                         for kk in range(k, min(k + tile_size, n)):
-                            addressA = (ii * n + kk) * DOUBLE_SIZE
-                            addressB = (n * n + kk * n + jj) * DOUBLE_SIZE
+                            addressA = (ii * n + kk)
+                            addressB = (n * n + kk * n + jj)
                             A_ii_kk = cpu.loadDouble(addressA)
                             B_jj_kk = cpu.loadDouble(addressB)
                             mult_step = cpu.multDoubles(A_ii_kk, B_jj_kk)
                             temp = cpu.addDoubles(temp, mult_step)
                     C[ii][jj] = temp
                     cpu.storeDouble(addressC, C[ii][jj])
-                            
+         
             for ii in range(i, min(i + tile_size, n)):
                 for jj in range(j, min(j + tile_size, n)):
                     assert np.isclose(C[ii][jj], intended_C[ii][jj]), f"C[{ii}][{jj}] = {C[ii][jj]}, intended C[{ii}][{jj}] = {intended_C[ii][jj]}"
@@ -230,7 +227,7 @@ def mxm_tiled(
     if print_results:
         for i in range(n):
             for j in range(n):
-                address = (2 * n * n + i * n + j) * DOUBLE_SIZE
+                address = (2 * n * n + i * n + j)
                 C[i][j] = cpu.loadDouble(address)
         print(f"C:\n{C}")
 
