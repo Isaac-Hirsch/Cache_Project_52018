@@ -43,6 +43,31 @@ def associative_tag_search(
     return associativity_check[associative_index], associative_index
 
 @jit(nopython=True, cache=True)
+def LRU_replace_search(
+            valid_bits: np.ndarray,
+            lru: np.ndarray,
+            index: int,
+            associativity: int,
+
+        ):
+    """
+    Searches for the index to replace in the LRU array.
+
+    Args:
+        valid_bits (np.ndarray): Array of valid bits.
+        lru (np.ndarray): LRU array.
+        index (int): Index to search in.
+        associativity (int): Associativity of the cache.
+    Returns:
+        int: Index of the tag to replace.
+    """
+
+    associativity_check = (1 - valid_bits[index * associativity:(index + 1) * associativity]) | \
+        (lru[index * associativity:(index + 1) * associativity] == associativity - 1)
+    associative_index = np.argmax(associativity_check)
+    return associative_index
+
+@jit(nopython=True, cache=True)
 def LRU_update(
             lru: np.ndarray,
             cache_line: int,
@@ -135,7 +160,7 @@ class Cache:
 
         Args:
             num_sets (int): Number of sets in the cache.
-            block_size (int): Size of each block in bytes.
+            block_size (int): Size of each block in words.
             associativity (int): Associativity of the cache.
             replacement_policy (str): Replacement policy to use ("LRU", "FIFO", "Random").
             memory (Memory): Memory object to interact with.
@@ -223,19 +248,32 @@ class Cache:
             return self.data[cache_line], offset
         # Cache miss
         if self.replacement_policy == "LRU":
-            self._associativity_check[:] = 1 - self.valid_bits[index * self.associativity:(index + 1) * self.associativity] | \
-                  self.lru[index * self.associativity:(index + 1) * self.associativity] == self.associativity - 1
-            associative_index = np.argmax(self._associativity_check)
+            associative_index = LRU_replace_search(
+                valid_bits=self.valid_bits,
+                lru=self.lru,
+                index=index,
+                associativity=self.associativity
+            )
             cache_line = index * self.associativity + associative_index
-            self.valid_bits[cache_line] = True
-            self.tags[cache_line] = tag
 
             for j in range(self.block_size):
                 self.data[cache_line][j] = self.memory.read(block_address + j)
             
-            self.lru[index * self.associativity:(index + 1) * self.associativity] \
-                += self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
-            self.lru[cache_line] = 0
+            if self.valid_bits[cache_line]:
+                LRU_update(
+                    lru=self.lru,
+                    cache_line=cache_line,
+                    index=index,
+                    associativity=self.associativity,
+                    valid_bits=self.valid_bits
+                )
+            else:
+                self.lru[index * self.associativity:(index + 1) * self.associativity] \
+                    += self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
+                self.lru[cache_line] = 0
+
+            self.valid_bits[cache_line] = True
+            self.tags[cache_line] = tag
             
             return self.data[cache_line], offset
 
@@ -310,21 +348,33 @@ class Cache:
         else:
             # Cache miss
             if self.replacement_policy == "LRU":
-                self._associativity_check[:] = 1 - self.valid_bits[index * self.associativity:(index + 1) * self.associativity] | \
-                    self.lru[index * self.associativity:(index + 1) * self.associativity] == self.associativity - 1
-                associative_index = np.argmax(self._associativity_check)
+                associative_index = LRU_replace_search(
+                    valid_bits=self.valid_bits,
+                    lru=self.lru,
+                    index=index,
+                    associativity=self.associativity
+                )
                 cache_line = index * self.associativity + associative_index
-                self.valid_bits[cache_line] = True
-                self.tags[cache_line] = tag
 
                 for j in range(self.block_size):
                     self.data[cache_line][j] = self.memory.read(block_address + j)
                 self.data[cache_line][offset] = data
                 
-                self.lru[index * self.associativity:(index + 1) * self.associativity] \
-                    += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line] & \
-                    self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
-                self.lru[cache_line] = 0
+                if self.valid_bits[cache_line]:
+                    LRU_update(
+                        lru=self.lru,
+                        cache_line=cache_line,
+                        index=index,
+                        associativity=self.associativity,
+                        valid_bits=self.valid_bits
+                    )
+                else:
+                    self.lru[index * self.associativity:(index + 1) * self.associativity] \
+                        += self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
+                    self.lru[cache_line] = 0
+                
+                self.valid_bits[cache_line] = True
+                self.tags[cache_line] = tag
             elif self.replacement_policy == "FIFO":
                 cache_line = index * self.associativity + self.fifo[index]
                 self.valid_bits[cache_line] = True

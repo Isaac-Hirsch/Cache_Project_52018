@@ -32,7 +32,8 @@ def main(args):
     
     mem = Memory(memsize)
     assert args.c % (DOUBLE_SIZE * args.b * args.n) == 0, "Cache size must be a multiple of the block size, associativity, and word size."
-    num_sets = args.c // (DOUBLE_SIZE * args.b * args.n)
+    total_blocks = args.c // (args.b * DOUBLE_SIZE)
+    num_sets = total_blocks // args.n
     cache = Cache(
         num_sets=num_sets,
         block_size=args.b,
@@ -69,7 +70,7 @@ def main(args):
     print(f"Cache Size =                        {args.c} bytes")
     print(f"Block Size =                        {args.b * DOUBLE_SIZE} bytes")
     print(f"Word Size =                         {DOUBLE_SIZE} bytes")
-    print(f"Total Blocks in Cache =             {args.c // args.b}")
+    print(f"Total Blocks in Cache =             {args.c // (args.b * DOUBLE_SIZE)}")
     print(f"Associativity =                     {args.n}")
     print(f"Number of Sets =                    {num_sets}")
     print(f"Replacement Policy =                {args.r}")

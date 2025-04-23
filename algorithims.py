@@ -205,11 +205,11 @@ def mxm_tiled(
     
     for i in range(0, n, tile_size):
         for j in range(0, n, tile_size):
-            for ii in range(i, min(i + tile_size, n)):
-                for jj in range(j, min(j + tile_size, n)):
-                    addressC = (2 * n * n + ii * n + jj)
-                    temp = cpu.loadDouble(addressC)
-                    for k in range(0, n, tile_size):
+            for k in range(0, n, tile_size):
+                for ii in range(i, min(i + tile_size, n)):
+                    for jj in range(j, min(j + tile_size, n)):
+                        addressC = (2 * n * n + ii * n + jj)
+                        temp = cpu.loadDouble(addressC)
                         for kk in range(k, min(k + tile_size, n)):
                             addressA = (ii * n + kk)
                             addressB = (n * n + kk * n + jj)
@@ -217,8 +217,8 @@ def mxm_tiled(
                             B_jj_kk = cpu.loadDouble(addressB)
                             mult_step = cpu.multDoubles(A_ii_kk, B_jj_kk)
                             temp = cpu.addDoubles(temp, mult_step)
-                    C[ii][jj] = temp
-                    cpu.storeDouble(addressC, C[ii][jj])
+                        C[ii][jj] = temp
+                        cpu.storeDouble(addressC, C[ii][jj])
          
             for ii in range(i, min(i + tile_size, n)):
                 for jj in range(j, min(j + tile_size, n)):
