@@ -34,14 +34,29 @@ def main(args):
     assert args.c % (DOUBLE_SIZE * args.b * args.n) == 0, "Cache size must be a multiple of the block size, associativity, and word size."
     total_blocks = args.c // (args.b * DOUBLE_SIZE)
     num_sets = total_blocks // args.n
-    cache = Cache(
+
+    l2_c = 131072
+    l2_b = 64 // DOUBLE_SIZE
+    l2_n = 8
+    l2_num_sets = l2_c // (l2_b * DOUBLE_SIZE * l2_n)
+    l2_cache = Cache(
+        num_sets=l2_num_sets,
+        block_size=l2_b,
+        associativity=l2_n,
+        replacement_policy=args.r,
+        memory=mem
+    )
+
+    l1_cache = Cache(
         num_sets=num_sets,
         block_size=args.b,
         associativity=args.n,
         replacement_policy=args.r,
-        memory=mem
+        memory=l2_cache
     )
-    cpu = CPU(mem, cache)
+
+
+    cpu = CPU(mem, l1_cache)
     if args.a == "daxpy":
         if args.t:
             a = np.float64(3.0)
@@ -78,13 +93,25 @@ def main(args):
     print(f"MXM Blocking Factor =               {args.f}")
     print(f"Matrix or Vector dimension =        {args.d}")
     print("RESULTS====================================")
-    print(f"Instruction count:                  {results['instruction_count']}")
-    print(f"Read hits:                          {results['load_hits']}")
-    print(f"Read misses:                        {results['load_misses']}")
-    print(f"Read miss rate:                     {results['load_misses'] / results['loads']:.2%}")
-    print(f"Write hits:                         {results['write_hits']}")
-    print(f"Write misses:                       {results['write_misses']}")
-    print(f"Write miss rate:                    {results['write_misses'] / results['writes']:.2%}")
+    print(f"Instruction count:                  {cpu.instruction_count}")
+    print(f"L1 Cache Loads:                     {l1_cache.get_loads}")
+    print(f"L1 Cache Load Hits:                 {l1_cache.get_load_hits}")
+    print(f"L1 Cache Load Misses:               {l1_cache.get_load_misses}")
+    print(f"L1 Cache Load Miss Rate:            {l1_cache.get_load_misses / (l1_cache.get_loads + l1_cache.get_loads):.2%}")
+    print(f"L1 Cache Writes:                    {l1_cache.get_writes}")
+    print(f"L1 Cache Write Hits:                {l1_cache.get_write_hits}")
+    print(f"L1 Cache Write Misses:              {l1_cache.get_write_misses}")
+    print(f"L1 Cache Write Miss Rate:           {l1_cache.get_write_misses / (l1_cache.get_writes + l1_cache.get_loads):.2%}")
+    # We need to divide by the block size of the l1 cache to get correct l2 numbers since the l1 cache calls block size
+    # loads of l2 for every time it misses a load, and same for writes
+    print(f"L2 Cache Loads:                     {l2_cache.get_loads // args.b}")
+    print(f"L2 Cache Load Hits:                 {l2_cache.get_load_hits // args.b}")
+    print(f"L2 Cache Load Misses:               {l2_cache.get_load_misses // args.b}")
+    print(f"L2 Cache Load Miss Rate:            {l2_cache.get_load_misses / (args.b * l1_cache.get_loads):.2%}")
+    print(f"L2 Cache Writes:                    {l2_cache.get_writes // args.b}")
+    print(f"L2 Cache Write Hits:                {l2_cache.get_write_hits // args.b}")
+    print(f"L2 Cache Write Misses:              {l2_cache.get_write_misses // args.b}")
+    print(f"L2 Cache Write Miss Rate:           {l2_cache.get_write_misses / (args.b * l1_cache.get_writes):.2%}")
 
 
 if __name__ == "__main__":
@@ -94,7 +121,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-c", help="The size of the cache in bytes.", type=int, default=65536
+        "-c", help="The size of the cache in bytes.", type=int, default=32768
     )
 
     parser.add_argument(
@@ -102,7 +129,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-n", help="The n-way associativity of the cache.", type=int, default=2
+        "-n", help="The n-way associativity of the cache.", type=int, default=8
     )
 
     parser.add_argument(
