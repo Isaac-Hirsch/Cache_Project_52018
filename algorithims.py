@@ -126,11 +126,17 @@ def mxm(
     
     for i in range(n):
         for j in range(n):
+            addressC = (2 * n * n + i * n + j) * DOUBLE_SIZE
+            temp = cpu.loadDouble(addressC)
             for k in range(n):
                 addressA = (i * n + k) * DOUBLE_SIZE
                 addressB = (n * n + k * n + j) * DOUBLE_SIZE
-                addressC = (2 * n * n + i * n + j) * DOUBLE_SIZE
-                C[i][j] = cpu.loadFMADouble(addressA, addressB, addressC, addressC)
+                A_ik = cpu.loadDouble(addressA)
+                B_jk = cpu.loadDouble(addressB)
+                mult_step = cpu.multDoubles(A_ik, B_jk)
+                temp = cpu.addDoubles(temp, mult_step)
+            C[i][j] = temp
+            cpu.storeDouble(addressC, C[i][j])
             assert np.isclose(C[i][j], intended_C[i][j]), f"C[{i}][{j}] = {C[i][j]}, intended C[{i}][{j}] = {intended_C[i][j]}"
     
     if print_results:
@@ -202,14 +208,21 @@ def mxm_tiled(
     
     for i in range(0, n, tile_size):
         for j in range(0, n, tile_size):
-            for k in range(0, n, tile_size):
-                for ii in range(i, min(i + tile_size, n)):
-                    for jj in range(j, min(j + tile_size, n)):
+            for ii in range(i, min(i + tile_size, n)):
+                for jj in range(j, min(j + tile_size, n)):
+                    addressC = (2 * n * n + ii * n + jj) * DOUBLE_SIZE
+                    temp = cpu.loadDouble(addressC)
+                    for k in range(0, n, tile_size):
                         for kk in range(k, min(k + tile_size, n)):
                             addressA = (ii * n + kk) * DOUBLE_SIZE
                             addressB = (n * n + kk * n + jj) * DOUBLE_SIZE
-                            addressC = (2 * n * n + ii * n + jj) * DOUBLE_SIZE
-                            C[ii][jj] = cpu.loadFMADouble(addressA, addressB, addressC, addressC)
+                            A_ii_kk = cpu.loadDouble(addressA)
+                            B_jj_kk = cpu.loadDouble(addressB)
+                            mult_step = cpu.multDoubles(A_ii_kk, B_jj_kk)
+                            temp = cpu.addDoubles(temp, mult_step)
+                    C[ii][jj] = temp
+                    cpu.storeDouble(addressC, C[ii][jj])
+                            
             for ii in range(i, min(i + tile_size, n)):
                 for jj in range(j, min(j + tile_size, n)):
                     assert np.isclose(C[ii][jj], intended_C[ii][jj]), f"C[{ii}][{jj}] = {C[ii][jj]}, intended C[{ii}][{jj}] = {intended_C[ii][jj]}"

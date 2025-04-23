@@ -141,7 +141,7 @@ class Cache:
             # Cache hit
             cache_line = index * self.associativity + associative_index
             self.load_hits += 1
-            if self.replacement_policy == "LRU":
+            if self.replacement_policy == "LRU" and self.lru[cache_line]:
                 self.lru[index * self.associativity:(index + 1) * self.associativity] \
                     += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line]
                 self.lru[cache_line] = 0
@@ -159,8 +159,7 @@ class Cache:
                 self.data[cache_line][j] = self.memory.read(block_address + j)
             
             self.lru[index * self.associativity:(index + 1) * self.associativity] \
-                += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line] & \
-                self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
+                += self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
             self.lru[cache_line] = 0
             
             return self.data[cache_line], offset
@@ -220,7 +219,7 @@ class Cache:
 
             self.data[cache_line][offset] = data
             
-            if self.replacement_policy == "LRU":
+            if self.replacement_policy == "LRU" and self.lru[cache_line]:
                 self.lru[index * self.associativity:(index + 1) * self.associativity] \
                     += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line]
                 self.lru[cache_line] = 0

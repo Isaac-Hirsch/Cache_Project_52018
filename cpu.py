@@ -32,10 +32,16 @@ class CPU:
 
         self.instruction_count += 1
 
-        for i in range(DOUBLE_SIZE):
+        i = 0
+        while i < DOUBLE_SIZE:
             block, offset = self.cache.read(address + i)
             self._double_bytes_array[i] = block[offset]
-
+            i += 1
+            j = offset + 1
+            while j < self.cache.block_size and i < DOUBLE_SIZE:
+                self._double_bytes_array[i] = block[j]
+                i += 1
+                j += 1
         return self._double_bytes_array.view(np.float64)[0]
     
     def storeDouble(self, address: int, value: np.float64) -> None:
@@ -53,7 +59,7 @@ class CPU:
         for i in range(DOUBLE_SIZE):
             self.cache.write(address + i, value_bytes[i])
 
-    def addDouble(self, value1: np.float64, value2: np.float64) -> np.float64:
+    def addDoubles(self, value1: np.float64, value2: np.float64) -> np.float64:
         """
         Add two doubles.
 
@@ -97,7 +103,7 @@ class CPU:
 
         self.registers[0] = self.loadDouble(address1)
         self.registers[1] = self.loadDouble(address2)
-        self.registers[2] = self.addDouble(self.registers[0], self.registers[1])
+        self.registers[2] = self.addDoubles(self.registers[0], self.registers[1])
         self.storeDouble(address3, self.registers[2])
 
         return self.registers[2]
@@ -142,7 +148,7 @@ class CPU:
         self.registers[1] = self.loadDouble(address2)
         self.registers[2] = self.multDoubles(self.registers[0], self.registers[1])
         self.registers[0] = self.loadDouble(address3)
-        self.registers[1] = self.addDouble(self.registers[0], self.registers[2])
+        self.registers[1] = self.addDoubles(self.registers[0], self.registers[2])
         self.storeDouble(address4, self.registers[1])
 
         return self.registers[1]
