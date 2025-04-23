@@ -157,7 +157,7 @@ class Cache:
         self.index_size = math.ceil(np.log2(self.num_sets))
         self.offset_size = math.ceil(np.log2(block_size))
         self.tag_size = memory.get_address_size - self.index_size - self.offset_size
-        assert self.tag_size >= 0, "Tag size must be greater than or equal to 0"
+        assert self.tag_size >= 0, f"Tag size must be greater than or equal to 0. Got {self.tag_size}, index size {self.index_size}, offset size {self.offset_size}, address size {memory.get_address_size}"
         #This does not include bits used for replacement policy
         self.cache_line_size = self.block_size + self.tag_size + 1 # Valid bit
         

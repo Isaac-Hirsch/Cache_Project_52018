@@ -12,8 +12,13 @@ import math
 DOUBLE_SIZE = 8
 
 def main(args):
+    args.b //= DOUBLE_SIZE # Convert to number of doubles
+
     if args.t:
-        args.d = 3
+        if args.a == "daxpy":
+            args.d = 9
+        elif args.a == "mxm":
+            args.d = 3
 
     if args.a == "daxpy":
         # args.d memory is needed to store each of the 3 vectors with 1 extra double needed for the scalar
@@ -24,11 +29,10 @@ def main(args):
     
     # Ensures that there is at least 1 tag bit. TODO change to 0 bits
     memsize = max(memsize, args.c)
-    args.b //= DOUBLE_SIZE # Convert to number of doubles
     
     mem = Memory(memsize)
-    assert args.c % (args.b * args.n) == 0, "Cache size must be a multiple of the block size, associativity, and word size."
-    num_sets = args.c // (args.b * args.n)
+    assert args.c % (DOUBLE_SIZE * args.b * args.n) == 0, "Cache size must be a multiple of the block size, associativity, and word size."
+    num_sets = args.c // (DOUBLE_SIZE * args.b * args.n)
     cache = Cache(
         num_sets=num_sets,
         block_size=args.b,
@@ -40,22 +44,22 @@ def main(args):
     if args.a == "daxpy":
         if args.t:
             a = np.float64(3.0)
-            x = np.ndarray(list(range(9)), dtype=np.float64)
-            y = np.ndarray(list(range(0, 18, 2)), dtype=np.float64)
+            x = np.array(list(range(9)), dtype=np.float64)
+            y = np.array(list(range(0, 18, 2)), dtype=np.float64)
         else:
             a, x, y = None, None, None
         results = daxpy(cpu, args.d, args.p, a, x, y)
     elif args.a == "mxm":
         if args.t:
-            A = np.ndarray([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.float64)
-            B = np.ndarray([[0, 2, 4], [6, 8, 10], [12, 14, 16]], dtype=np.float64)
+            A = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.float64)
+            B = np.array([[0, 2, 4], [6, 8, 10], [12, 14, 16]], dtype=np.float64)
         else:
             A, B = None, None
         results = mxm(cpu, args.d, args.p, A, B)
     elif args.a == "mxm_block":
         if args.t:
-            A = np.ndarray([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.float64)
-            B = np.ndarray([[0, 2, 4], [6, 8, 10], [12, 14, 16]], dtype=np.float64)
+            A = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.float64)
+            B = np.array([[0, 2, 4], [6, 8, 10], [12, 14, 16]], dtype=np.float64)
         else:
             A, B = None, None
         results = mxm_tiled(cpu, args.d, args.f, args.p, A, B)
@@ -63,7 +67,8 @@ def main(args):
     print("INPUTS====================================")
     print(f"Ram Size =                          {memsize} bytes")
     print(f"Cache Size =                        {args.c} bytes")
-    print(f"Block Size =                        {args.b} bytes")
+    print(f"Block Size =                        {args.b * DOUBLE_SIZE} bytes")
+    print(f"Word Size =                         {DOUBLE_SIZE} bytes")
     print(f"Total Blocks in Cache =             {args.c // args.b}")
     print(f"Associativity =                     {args.n}")
     print(f"Number of Sets =                    {num_sets}")
