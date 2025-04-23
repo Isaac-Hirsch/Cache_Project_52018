@@ -134,39 +134,36 @@ class Cache:
         tag, index, offset = self.get_address_split(address)
         block_address = address - offset
 
-        for i in range(self.associativity):
-            cache_line = index * self.associativity + i
-            if self.valid_bits[cache_line] and self.tags[cache_line] == tag:
-                self.load_hits += 1
-                if self.replacement_policy == "LRU":
-                    for j in range(self.associativity):
-                        if j != i and self.valid_bits[index * self.associativity + j] \
-                            and self.lru[index * self.associativity + j] < self.lru[index * self.associativity + i]:
-                            self.lru[index * self.associativity + j] += 1
-                    self.lru[index * self.associativity + i] = 0
-                return self.data[cache_line], offset
-
+        associativity_check = self.valid_bits[index * self.associativity:(index + 1) * self.associativity] & \
+                (self.tags[index * self.associativity:(index + 1) * self.associativity] == tag)
+        associative_index = np.argmax(associativity_check)
+        if associativity_check[associative_index]:
+            # Cache hit
+            cache_line = index * self.associativity + associative_index
+            self.load_hits += 1
+            if self.replacement_policy == "LRU":
+                self.lru[index * self.associativity:(index + 1) * self.associativity] \
+                    += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line]
+                self.lru[cache_line] = 0
+            return self.data[cache_line], offset
         # Cache miss
         if self.replacement_policy == "LRU":
-            for i in range(self.associativity):
-                cache_line = index * self.associativity + i
-                if not self.valid_bits[cache_line] or self.lru[cache_line] == self.associativity - 1:
-                    self.valid_bits[cache_line] = True
-                    self.tags[cache_line] = tag
+            associativity_check = 1 - self.valid_bits[index * self.associativity:(index + 1) * self.associativity] | \
+                  self.lru[index * self.associativity:(index + 1) * self.associativity] == self.associativity - 1
+            associative_index = np.argmax(associativity_check)
+            cache_line = index * self.associativity + associative_index
+            self.valid_bits[cache_line] = True
+            self.tags[cache_line] = tag
 
-                    for j in range(self.block_size):
-                        self.data[cache_line][j] = self.memory.read(block_address + j)
-                    
-                    for j in range(self.associativity):
-                        if j != i and self.valid_bits[index * self.associativity + j]:
-                            if not (self.valid_bits[index * self.associativity + i] \
-                                and self.lru[index * self.associativity + j] > self.lru[index * self.associativity + i]):
-                                self.lru[index * self.associativity + j] += 1
-                    self.lru[cache_line] = 0
-                    
-                    return self.data[cache_line], offset
-
-            raise Exception("Something went wrong with cache read")
+            for j in range(self.block_size):
+                self.data[cache_line][j] = self.memory.read(block_address + j)
+            
+            self.lru[index * self.associativity:(index + 1) * self.associativity] \
+                += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line] & \
+                self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
+            self.lru[cache_line] = 0
+            
+            return self.data[cache_line], offset
 
         elif self.replacement_policy == "FIFO":
             cache_line = index * self.associativity + self.fifo[index]
@@ -178,8 +175,10 @@ class Cache:
             return self.data[cache_line], offset
         
         elif self.replacement_policy == "random":
-            for j in range(self.associativity):
-                cache_line = index * self.associativity + j
+            associativity_check = 1 - self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
+            associative_index = np.argmax(associativity_check)
+            if associativity_check[associative_index]:
+                cache_line = index * self.associativity + associative_index
                 if not self.valid_bits[cache_line]:
                     self.valid_bits[cache_line] = True
                     self.tags[cache_line] = tag
@@ -212,42 +211,37 @@ class Cache:
         tag, index, offset = self.get_address_split(address)
         block_address = address - offset
 
-        for i in range(self.associativity):
-            cache_line = index * self.associativity + i
-            if self.valid_bits[cache_line] and self.tags[cache_line] == tag:
-                self.write_hits += 1
+        associativity_check = self.valid_bits[index * self.associativity:(index + 1) * self.associativity] & \
+                (self.tags[index * self.associativity:(index + 1) * self.associativity] == tag)
+        associative_index = np.argmax(associativity_check)
+        if associativity_check[associative_index]:
+            cache_line = index * self.associativity + associative_index
+            self.write_hits += 1
 
-                self.data[cache_line][offset] = data
-                
-                if self.replacement_policy == "LRU":
-                    for j in range(self.associativity):
-                        if j != i and self.valid_bits[index * self.associativity + j] \
-                            and self.lru[index * self.associativity + j] < self.lru[index * self.associativity + i]:
-                            self.lru[index * self.associativity + j] += 1
-                    self.lru[index * self.associativity + i] = 0
-                break
+            self.data[cache_line][offset] = data
+            
+            if self.replacement_policy == "LRU":
+                self.lru[index * self.associativity:(index + 1) * self.associativity] \
+                    += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line]
+                self.lru[cache_line] = 0
         # Cache miss
         else:
             if self.replacement_policy == "LRU":
-                for i in range(self.associativity):
-                    cache_line = index * self.associativity + i
-                    if not self.valid_bits[cache_line] or self.lru[cache_line] == self.associativity - 1:
-                        self.valid_bits[cache_line] = True
-                        self.tags[cache_line] = tag
+                associativity_check = 1 - self.valid_bits[index * self.associativity:(index + 1) * self.associativity] | \
+                    self.lru[index * self.associativity:(index + 1) * self.associativity] == self.associativity - 1
+                associative_index = np.argmax(associativity_check)
+                cache_line = index * self.associativity + associative_index
+                self.valid_bits[cache_line] = True
+                self.tags[cache_line] = tag
 
-                        for j in range(self.block_size):
-                            self.data[cache_line][j] = self.memory.read(block_address + j)
-                        self.data[cache_line][offset] = data
-                        
-                        for j in range(self.associativity):
-                            if j != i and self.valid_bits[index * self.associativity + j]:
-                                if not (self.valid_bits[index * self.associativity + i] \
-                                    and self.lru[index * self.associativity + j] > self.lru[index * self.associativity + i]):
-                                    self.lru[index * self.associativity + j] += 1
-                        self.lru[index * self.associativity + i] = 0
-                        break
-                else:
-                    raise Exception("Something went wrong with cache write")
+                for j in range(self.block_size):
+                    self.data[cache_line][j] = self.memory.read(block_address + j)
+                self.data[cache_line][offset] = data
+                
+                self.lru[index * self.associativity:(index + 1) * self.associativity] \
+                    += self.lru[index * self.associativity:(index + 1) * self.associativity] < self.lru[cache_line] & \
+                    self.valid_bits[index * self.associativity:(index + 1) * self.associativity]
+                self.lru[cache_line] = 0
             elif self.replacement_policy == "FIFO":
                 cache_line = index * self.associativity + self.fifo[index]
                 self.valid_bits[cache_line] = True
@@ -259,8 +253,11 @@ class Cache:
                 self.data[cache_line][offset] = data
                 self.fifo[index] = (self.fifo[index] + 1) % self.associativity
             elif self.replacement_policy == "random":
-                for i in range(self.associativity):
-                    cache_line = index * self.associativity + i
+                associativity_check = self.valid_bits[index * self.associativity:(index + 1) * self.associativity] & \
+                        (self.tags[index * self.associativity:(index + 1) * self.associativity] == tag)
+                associative_index = np.argmax(associativity_check)
+                if associativity_check[associative_index]:
+                    cache_line = index * self.associativity + associative_index
                     if not self.valid_bits[cache_line]:
                         self.valid_bits[cache_line] = True
                         self.tags[cache_line] = tag
@@ -269,8 +266,6 @@ class Cache:
                             self.data[cache_line][j] = self.memory.read(block_address + j)
 
                         self.data[cache_line][offset] = data
-                        
-                        break
                 else:
                     cache_line = index * self.associativity + np.random.randint(self.associativity)
                     self.valid_bits[cache_line] = True
